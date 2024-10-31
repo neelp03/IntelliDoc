@@ -1,44 +1,38 @@
 package main
 
 import (
-	"log"
-	"time"
+    "time"
+		"log"
 )
 
 type Paper struct {
-	ID              int       `db:"id"`
-	Title           string    `db:"title"`
-	Authors         string    `db:"authors"`
-	PublicationDate time.Time `db:"publication_date"`
-	Section         string    `db:"section"`
-	Content         string    `db:"content"`
-	Embedding       []float64 `db:"embedding"`
+    ID              int       `gorm:"primaryKey"`
+    Title           string
+    Authors         string
+    PublicationDate time.Time
+    Section         string
+    Content         string
+    Embedding       []float64 `gorm:"type:vector(768)"`
 }
 
-// CreateSchema ensures the database schema exists
-func createSchema() {
-	schema := `
-	CREATE TABLE IF NOT EXISTS papers (
-		id SERIAL PRIMARY KEY,
-		title TEXT,
-		authors TEXT,
-		publication_date DATE,
-		section TEXT,
-		content TEXT,
-		embedding vector(768)  -- Adjust the dimension based on the model used
-	);
-	`
-	_, err := Db.Exec(schema)
+// insertPaper adds a new paper to the database with an embedding.
+func insertPaper(paper *Paper) error {
+	// Generate embedding for the paper content
+	embedding, err := generateEmbedding(paper.Content)
 	if err != nil {
-		log.Fatalf("Failed to create schema: %v", err)
+			log.Printf("Failed to generate embedding for paper '%s': %v", paper.Title, err)
+			return err
 	}
-}
 
-// InsertPaper adds a new paper to the database
-func insertPaper(paper Paper) error {
-	_, err := Db.Exec(`
-		INSERT INTO papers (title, authors, publication_date, section, content, embedding)
-		VALUES ($1, $2, $3, $4, $5, $6);
-	`, paper.Title, paper.Authors, paper.PublicationDate, paper.Section, paper.Content, paper.Embedding)
-	return err
+	// Assign the generated embedding to the paper struct
+	paper.Embedding = embedding
+
+	// Insert the paper into the database
+	if err := Db.Create(paper).Error; err != nil {
+			log.Printf("Failed to insert paper '%s' into the database: %v", paper.Title, err)
+			return err
+	}
+
+	log.Printf("Paper '%s' inserted successfully", paper.Title)
+	return nil
 }

@@ -1,33 +1,35 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"os"
+    "log"
 
-	_ "github.com/lib/pq"
-	"github.com/jmoiron/sqlx"
+    "gorm.io/driver/postgres"
+    "gorm.io/gorm"
 )
 
-// Db is a global database connection instance
-var Db *sqlx.DB
+var Db *gorm.DB
 
-// InitDB initializes the database connection
+// InitDB initializes the database connection using GORM
 func InitDB() {
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
-	dbName := os.Getenv("DB_NAME")
+    databaseURL := "db_url_here"
+    if databaseURL == "" {
+        log.Fatal("DATABASE_URL not set")
+    }
 
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
-		dbHost, dbPort, dbUser, dbPassword, dbName)
+    var err error
+    Db, err = gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
+    if err != nil {
+        log.Fatalf("Failed to connect to database: %v", err)
+    }
 
-	var err error
-	Db, err = sqlx.Connect("postgres", connStr)
-	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
+    log.Println("Successfully connected to the Timescale Cloud database")
+}
 
-	log.Println("Successfully connected to the database")
+// CloseDB closes the database connection.
+func CloseDB() {
+    sqlDB, err := Db.DB()
+    if err != nil {
+        log.Fatalf("Failed to get DB from GORM: %v", err)
+    }
+    sqlDB.Close()
 }
